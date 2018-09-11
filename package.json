@@ -1,0 +1,16 @@
+{
+  "name": "abunafarajgooglesync",
+  "version": "1.0.0",
+  "description": "Petit script pour synchroniser le Logmis d'Abuna Faraj avec le calendrier Google",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "author": "Mandorlo <shaqed@outlook.fr>",
+  "license": "ISC",
+  "dependencies": {
+    "convert-excel-to-json": "^1.4.0",
+    "google-auth-library": "^2.0.0",
+    "moment": "^2.22.2"
+  }
+}
