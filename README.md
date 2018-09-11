@@ -1,4 +1,9 @@
-# Documentation
+# Setup
+
+* Create a DEBUG folder
+* copy arcana.js with calendar_id and service account
+
+# Process
 
 * Créer un nouvel agenda Google
 * récupérer l'ID de l'agenda dans les paramètres (variable CALENDAR_ID)
