@@ -20,16 +20,22 @@ function REGEX_PAX(el) {
     return (res && res.length > 2) ? res[2]: 0
 }
 
-// le type de pension "HB" ou "BB"
+// le type de pension "HB" ou "BB" ou "BIVOUAC"
 function REGEX_PENSION(el) {
-    let res = /(^|\s)(HB|BB)($|\s)/gi.exec(el.N)
-    return (res && res.length > 2) ? res[2]: 0
+    let res = /(^|\s)(HB|BB|[Bb]ivouacs?)($|\s)/g.exec(el.N)
+    if (res && res.length > 2) {
+        if (res == 'HB' || res == 'BB') return res;
+        return 'BIVOUAC'
+    }
+    return 'BB'
 }
 // =========================================================
 // =========================================================
 
 const HEURE_PTIDEJ = 7;
 const HEURE_DINER = 19;
+const HEURE_ARRIVEE = 18;
+const HEURE_DEPART = 9;
 
 // COLOR IDS : https://eduardopereira.pt/wp-content/uploads/2012/06/google_calendar_api_event_color_chart.png
 const COLORS = {
@@ -59,6 +65,7 @@ async function main() {
     if (DEBUG) fs.writeFile(path.join(DEBUG_DIR, '1_most_recent_src_file.txt'), mostrecent_xlsx_path, 'utf8', _ => 1)
     // 2. on le transforme en JSON
     let data = getData(mostrecent_xlsx_path)
+    if (data.error) throw data;
     console.log('Il y a ' + data.length + ' dossiers')
     if (DEBUG) fs.writeFile(path.join(DEBUG_DIR, '2_xls2data.json'), JSON.stringify(data, null, '\t'), 'utf8', _ => 1)
     // 3. on le transforme en JSON pour Google Calendar
@@ -68,8 +75,14 @@ async function main() {
     // 4. on synchronise avec Google Calendar
     return calendar.syncCore(dataGoogle)
 }
-main().then(r => console.log(`C'est terminé (${r.length} événements ajoutés/supprimés) ! Béni sois-tu Seigneur !`))
-    .catch(err => console.log('ERREUR', err))
+main().then(r => {
+        console.log(`\nC'est terminé (${r.length} événements ajoutés/supprimés) ! Béni sois-tu Seigneur !`);
+        systemPause()
+    })
+    .catch(err => {
+        console.log('ERREUR', err, '\n\n');
+        systemPause()
+    })
 
 
 
@@ -91,7 +104,7 @@ function getData(excel_path) {
     if (Object.getOwnPropertyNames(result).length < 1) {
         return {error: true, description: `Le fichier excel ${excel_path} semble vide : `}
     }
-    // 2.1 on récupère la première page
+    // 2.1 on récupère la première worksheet
     const lignes = result[Object.getOwnPropertyNames(result)[0]]
     const data = lignes
                 // on filtre les dossiers qui n'ont pas de date de départ ou d'arrivée
@@ -112,6 +125,7 @@ function getData(excel_path) {
                         pension: REGEX_PENSION(lig)
                     }
                 })
+                // on filtre les dossiers antérieurs à aujourd'hui
                 .filter(el => el.date_debut.isSameOrAfter(moment().startOf('day')))
     return data
 }
@@ -123,10 +137,13 @@ function data2GoogleCalendarFormat(data) {
 }
 
 function parseDossier4GoogleCalendar(dossier) {
-    // on ajoute les pti-déj
-    let breakfasts = getDateRange(dossier.date_debut, dossier.date_fin, HEURE_PTIDEJ).slice(1).map(currTime => {
-        return newEvent(dossier, {title: 'Ptidéj -', time: currTime, color: COLORS.breakfast})
-    })
+    // on ajoute les pti-déj si HB ou BB (pas bivouac)
+    let breakfasts = []
+    if (dossier.pension && dossier.pension != 'BIVOUAC') {
+        breakfasts = getDateRange(dossier.date_debut, dossier.date_fin, HEURE_PTIDEJ).slice(1).map(currTime => {
+            return newEvent(dossier, {title: 'Ptidéj -', time: currTime, color: COLORS.breakfast})
+        })
+    }
     // on ajoute éventuellement les dîners
     let dinners = []
     if (dossier.pension && dossier.pension == 'HB') {
@@ -134,11 +151,12 @@ function parseDossier4GoogleCalendar(dossier) {
             return newEvent(dossier, {title: 'Dîner -', time: currTime, color: COLORS.dinner})
         })
     }
-    // on renvoie tous ces événements
+    // on renvoie tous ces événements + arrivée et départ
     let time_debut = moment(dossier.date_debut)
-    time_debut.set({hour: 18, minutes:0})
+    time_debut.set({hour: HEURE_ARRIVEE, minutes:0})
     let time_fin = moment(dossier.date_fin)
-    time_fin.set({hour: 9, minutes:0})
+    time_fin.set({hour: HEURE_DEPART, minutes:0})
+
     return [newEvent(dossier, {title: 'ARRIVÉE -', date: dossier.date_debut, color: COLORS.arrivee}),
             newEvent(dossier, {title: 'ARRIVÉE -', time: time_debut, color: COLORS.arrivee}), 
             breakfasts, 
@@ -217,3 +235,10 @@ function sortBy(arr, fn) {
       return 1
     })
   }
+
+function systemPause() {
+    console.log('Appuie sur une touche pour quitter');
+    process.stdin.setRawMode(true);
+    process.stdin.resume();
+    process.stdin.on('data', process.exit.bind(process, 0));
+}
