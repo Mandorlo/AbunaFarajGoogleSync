@@ -16,17 +16,20 @@ const DEBUG_DIR = path.join(__dirname, 'DEBUG')
 
 // le nombre de pax "25 pax"
 function REGEX_PAX(el) {
-    let res = /(^|\s)([0-9]+)\s*pax/g.exec(el.N)
+    let res = /(^|\s)([0-9]+)\s*pax/gi.exec(el.N)
     return (res && res.length > 2) ? res[2]: 0
 }
 
 // le type de pension "HB" ou "BB"
 function REGEX_PENSION(el) {
-    let res = /(^|\s)(HB|BB)($|\s)/g.exec(el.N)
+    let res = /(^|\s)(HB|BB)($|\s)/gi.exec(el.N)
     return (res && res.length > 2) ? res[2]: 0
 }
 // =========================================================
 // =========================================================
+
+const HEURE_PTIDEJ = 7;
+const HEURE_DINER = 19;
 
 // COLOR IDS : https://eduardopereira.pt/wp-content/uploads/2012/06/google_calendar_api_event_color_chart.png
 const COLORS = {
@@ -121,21 +124,28 @@ function data2GoogleCalendarFormat(data) {
 
 function parseDossier4GoogleCalendar(dossier) {
     // on ajoute les pti-déj
-    let breakfasts = getDateRange(dossier.date_debut, dossier.date_fin, 7).slice(1).map(currTime => {
+    let breakfasts = getDateRange(dossier.date_debut, dossier.date_fin, HEURE_PTIDEJ).slice(1).map(currTime => {
         return newEvent(dossier, {title: 'Ptidéj -', time: currTime, color: COLORS.breakfast})
     })
     // on ajoute éventuellement les dîners
     let dinners = []
     if (dossier.pension && dossier.pension == 'HB') {
-        dinners = getDateRange(dossier.date_debut, dossier.date_fin, 20).slice(1).map(currTime => {
+        dinners = getDateRange(dossier.date_debut, dossier.date_fin, HEURE_DINER).slice(0, -1).map(currTime => {
             return newEvent(dossier, {title: 'Dîner -', time: currTime, color: COLORS.dinner})
         })
     }
     // on renvoie tous ces événements
-    return [newEvent(dossier, {title: 'ARRIVÉE -', date: dossier.date_debut, color: COLORS.arrivee}), 
+    let time_debut = moment(dossier.date_debut)
+    time_debut.set({hour: 18, minutes:0})
+    let time_fin = moment(dossier.date_fin)
+    time_fin.set({hour: 9, minutes:0})
+    return [newEvent(dossier, {title: 'ARRIVÉE -', date: dossier.date_debut, color: COLORS.arrivee}),
+            newEvent(dossier, {title: 'ARRIVÉE -', time: time_debut, color: COLORS.arrivee}), 
             breakfasts, 
             dinners, 
-            newEvent(dossier, {title: 'DÉPART -', date: dossier.date_fin, color: COLORS.depart})]
+            newEvent(dossier, {title: 'DÉPART -', date: dossier.date_fin, color: COLORS.depart}),
+            newEvent(dossier, {title: 'DÉPART -', time: time_fin, color: COLORS.depart})
+        ]
 }
 
 function newEvent(dossier, opt) {
@@ -172,7 +182,7 @@ function getDateRange(start_date, end_date, heure = null) {
     if (heure !== null) start_date2.set({hour:heure, minute:0});
     let res = [moment(start_date2)]
     let nb_days = end_date.diff(start_date, 'days')
-    for (let i = 1; i < nb_days; i++) {
+    for (let i = 1; i <= nb_days; i++) {
         let currDate = start_date2.add(1, 'days')
         res.push(moment(currDate))
     }
