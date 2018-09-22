@@ -24,7 +24,7 @@ function REGEX_PAX(el) {
 function REGEX_PENSION(el) {
     let res = /(^|\s)(HB|BB|[Bb]ivouacs?)($|\s)/g.exec(el.N)
     if (res && res.length > 2) {
-        if (res == 'HB' || res == 'BB') return res;
+        if (res[2] == 'HB' || res[2] == 'BB') return res[2];
         return 'BIVOUAC'
     }
     return 'BB'

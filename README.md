@@ -1,7 +1,7 @@
 # Setup
 
 * Create a DEBUG folder
-* copy arcana.js with calendar_id and service account
+* copy arcana.json with calendar_id and service account
 
 # Process
 
