@@ -14,6 +14,13 @@ const DEBUG_DIR = path.join(__dirname, 'DEBUG')
 // récupérer des infos dans la colonne "Observation"
 // =========================================================
 
+const PENSIONS = {
+    'BB': ['ptidej'],
+    'HB': ['ptidej', 'diner'],
+    'BIVOUAC': [],
+    'NOTHING': []
+}
+
 // le nombre de pax "25 pax"
 function REGEX_PAX(el) {
     let res = /(^|\s)([0-9]+)\s*pax/gi.exec(el.N)
@@ -27,7 +34,7 @@ function REGEX_PENSION(el) {
         if (res[2] == 'HB' || res[2] == 'BB') return res[2];
         return 'BIVOUAC'
     }
-    return 'BB'
+    return 'NOTHING'
 }
 // =========================================================
 // =========================================================
@@ -139,14 +146,14 @@ function data2GoogleCalendarFormat(data) {
 function parseDossier4GoogleCalendar(dossier) {
     // on ajoute les pti-déj si HB ou BB (pas bivouac)
     let breakfasts = []
-    if (dossier.pension && dossier.pension != 'BIVOUAC') {
+    if (dossier.pension && PENSIONS[dossier.pension].indexOf('ptidej') >= 0) {
         breakfasts = getDateRange(dossier.date_debut, dossier.date_fin, HEURE_PTIDEJ).slice(1).map(currTime => {
             return newEvent(dossier, {title: 'Ptidéj -', time: currTime, color: COLORS.breakfast})
         })
     }
     // on ajoute éventuellement les dîners
     let dinners = []
-    if (dossier.pension && dossier.pension == 'HB') {
+    if (dossier.pension && PENSIONS[dossier.pension].indexOf('diner') >= 0) {
         dinners = getDateRange(dossier.date_debut, dossier.date_fin, HEURE_DINER).slice(0, -1).map(currTime => {
             return newEvent(dossier, {title: 'Dîner -', time: currTime, color: COLORS.dinner})
         })
