@@ -80,7 +80,7 @@ async function main() {
     console.log('Il y a ' + dataGoogle.length + ' événements Google')
     if (DEBUG) fs.writeFile(path.join(DEBUG_DIR, '3_data2google.json'), JSON.stringify(dataGoogle, null, '\t'), 'utf8', _ => 1)
     // 4. on synchronise avec Google Calendar
-    return calendar.syncCore(dataGoogle)
+    return calendar.syncCoreBatch(dataGoogle, 30)
 }
 main().then(r => {
         console.log(`\nC'est terminé (${r.length} événements ajoutés/supprimés) ! Béni sois-tu Seigneur !`);
@@ -164,12 +164,13 @@ function parseDossier4GoogleCalendar(dossier) {
     let time_fin = moment(dossier.date_fin)
     time_fin.set({hour: HEURE_DEPART, minutes:0})
 
-    return [newEvent(dossier, {title: 'ARRIVÉE -', date: dossier.date_debut, color: COLORS.arrivee}),
-            newEvent(dossier, {title: 'ARRIVÉE -', time: time_debut, color: COLORS.arrivee}), 
+    let ifpension = (dossier.pension != 'NOTHING') ? dossier.pension + '-' : '' ;
+    return [newEvent(dossier, {title: `ARRIVÉE -${ifpension}`, date: dossier.date_debut, color: COLORS.arrivee}),
+            newEvent(dossier, {title: `ARRIVÉE -${ifpension}`, time: time_debut, color: COLORS.arrivee}), 
             breakfasts, 
             dinners, 
-            newEvent(dossier, {title: 'DÉPART -', date: dossier.date_fin, color: COLORS.depart}),
-            newEvent(dossier, {title: 'DÉPART -', time: time_fin, color: COLORS.depart})
+            newEvent(dossier, {title: `DÉPART -${ifpension}`, date: dossier.date_fin, color: COLORS.depart}),
+            newEvent(dossier, {title: `DÉPART -${ifpension}`, time: time_fin, color: COLORS.depart})
         ]
 }
 
@@ -178,10 +179,11 @@ function newEvent(dossier, opt) {
     let ifoption = (dossier.etat == 'Option') ? 'OPTION -': '';
     let nom_groupe = (dossier.nom_groupe) ? dossier.nom_groupe: dossier.client;
     let ifrooms = (dossier.rooms) ? '\n' + dossier.rooms + ' chambres': '';
+    let ifpension = (dossier.pension != 'NOTHING') ? dossier.pension + '-' : '' ;
 
     let ev = {
         summary: `${ifoption} ${opt.title} ${nom_groupe} ${ifpax}`.trim(),
-        description: `Dossier N°${dossier.dossier} - ${dossier.etat}\n${dossier.client}${ifrooms}`,
+        description: `Dossier N°${dossier.dossier} -${ifpension} ${dossier.etat}\n${dossier.client}${ifrooms}`,
         colorId: opt.color,
         start: {},
         end: {}

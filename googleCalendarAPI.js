@@ -9,6 +9,68 @@ let GCLIENT;
 // COLOR IDS : https://eduardopereira.pt/wp-content/uploads/2012/06/google_calendar_api_event_color_chart.png
 
 // synchronise les événements de list_events dans le calendrier
+// on peut l'améliorer, sans utiliser la fontion segment() mais en faisant un await dès que compteur = nb_batch...
+async function syncCoreBatch(list_events, nb_batch = 30) {
+  let existing_events = await getFutureEvents()
+  let all_res = [];
+
+  // on ajoute les événements modifiés ou ajoutés
+  let batches_list_events = segment(list_events, nb_batch);
+
+  for (let i = 0; i < batches_list_events.length; i++) {
+    console.log(`\nBatch ADD ${i+1}/${batches_list_events.length}`)
+    let myPromises = []
+    let compteur = 0
+    let status = 0
+
+    for (let ev of batches_list_events[i]) {
+      if (!eventExistsInList(ev, existing_events)) {
+        let p = addEvent(ev, 10)
+        p.then(_ => {
+          status++;
+          printText(`Sync Status : ${status}/${compteur}`)
+        })
+        p.catch(e => console.log(e))
+        compteur++;
+        printText(compteur.toString())
+        myPromises.push(p)
+      }
+    }
+
+    let curr_res = await Promise.all(myPromises)
+    all_res = all_res.concat(curr_res)
+  }
+
+  // on supprime les événements en trop
+  let batches_del = segment(existing_events, nb_batch);
+  for (let i = 0; i < batches_del.length; i++) {
+    console.log(`\nBatch DEL ${i+1}/${batches_del.length}`)
+    let myPromises = []
+    let compteur = 0
+    let status = 0
+
+    for (let ev of existing_events) {
+      if (!eventExistsInList(ev, list_events)) {
+        let p = deleteEvent(ev, 10)
+        p.then(_ => {
+          status++;
+          printText(`Sync Status : ${status}/${compteur}`)
+        })
+        p.catch(e => console.log(e))
+        compteur++;
+        printText(compteur.toString())
+        myPromises.push(p)
+      }
+    }
+
+    let curr_res = await Promise.all(myPromises)
+    all_res = all_res.concat(curr_res)
+  }
+
+  return all_res
+}
+
+// synchronise les événements de list_events dans le calendrier
 async function syncCore(list_events) {
   let existing_events = await getFutureEvents()
   let myPromises = []
@@ -141,9 +203,25 @@ function printText(texte) {
   process.stdout.write(texte);
 }
 
+// renvoie un array 2d avec les éléments de arr répartis par batches de @nb éléments
+function segment(arr, nb) {
+  let res = []
+  let batch = []
+  for (let i = 0; i < arr.length; i++) {
+    if (i % nb == 0) {
+      if (batch.length > 0) res.push(batch)
+      batch = [];
+    }
+    batch.push(arr[i])
+  }
+  if (batch.length > 0) res.push(batch)
+  return res
+}
+
 module.exports = {
   deleteEvent,
   addEvent,
   getFutureEvents,
-  syncCore
+  syncCore,
+  syncCoreBatch
 }
